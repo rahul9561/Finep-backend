@@ -77,7 +77,10 @@ WSGI_APPLICATION = 'config.wsgi.application'
 
 CORS_ALLOW_ALL_ORIGINS = True
 
-
+CSRF_TRUSTED_ORIGINS = [
+    "https://apifinrep.avmanagement.in",
+    "https://finrep.avmanagement.in"
+]
 # Database
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
