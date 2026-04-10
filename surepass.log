@@ -1,0 +1,88 @@
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 401
+RESPONSE: {"data": null, "error": null, "message": "Your token is invalid. Please ensure that correct token is being used.", "status_code": 401, "success": false, "message_code": "invalid_token"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_qNtvoEyhmANqtrPggzhp", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_TfJxaEicUdsVkXFlhSec", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_aNqMzvwiliSbToraUZMY", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_kbTrstRutrHRgqQnDnzr", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_BCcZQLkhBbQmuqxejNyE", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_EaYaHuYyncdpBoKCVdsN", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_MtcnjUSGpdFtlktshfjq", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_reErnpVPtiEzqTfVGsrM", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_yZKMSvyhLRDFwKtlGoLO", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/pan/pan-verify
+PAYLOAD: {'id_number': 'PFKPK9634C', 'full_name': 'Rahul Kumar', 'dob': '2001-11-05'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "pan_AjbxnojKobXSaRUcgAzv", "pan_number": "PFKPK9634C", "full_name": "RAHUL KUMAR", "dob": "2001-11-05"}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/pan/pan-verify
+PAYLOAD: {'id_number': 'PFKPK9634C', 'full_name': 'Rahul Kumar', 'dob': '2001-11-05'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "pan_fOeTftMJyyCWzIQBjcul", "pan_number": "PFKPK9634C", "full_name": "RAHUL KUMAR", "dob": "2001-11-05"}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/corporate/gstin
+PAYLOAD: {'id_number': '03ABECA3510F1ZF'}
+STATUS: 200
+RESPONSE: {"data": {"address_details": {}, "einvoice_status": false, "client_id": "corporate_gstin_BDDaEPyMzpSQfbePnMre", "gstin": "03ABECA3510F1ZF", "pan_number": "ABECA3510F", "fy": null, "business_name": "AV MANAGEMENT PRIVATE LIMITED", "legal_name": "AV MANAGEMENT PRIVATE LIMITED", "center_jurisdiction": "State - CBIC,Zone - CHANDIGARH,Commissionerate - LUDHIANA,Division - SANGRUR,Range - RANGE-IV", "state_jurisdiction": "State - Punjab,Division - Patiala,District - Sangrur,Ward - Sangrur - Ward No.2 (Jurisdictional Office)", "date_of_registration": "2025-12-19", "constitution_of_business": "Private Limited Company", "taxpayer_type": "Regular", "gstin_status": "Active", "date_of_cancellation": "1800-01-01", "field_visit_conducted": "No", "nature_bus_activities": ["Supplier of Services"], "nature_of_core_business_activity_code": "SPO", "nature_of_core_business_activity_description": "Service Provider and Others", "aadhaar_validation": "Yes", "aadhaar_validation_date": "2026-01-16", "filing_status": [], "address": "C/O Ram Gopal, Shop No. 54, Anaj Mandi, Dirba, Sangrur, Punjab, 148035", "hsn_info": {}, "filing_frequency": []}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+URL: https://kyc-api.surepass.app/api/v1/corporate/gstin
+PAYLOAD: {'id_number': '03ABECA3510F1ZF'}
+STATUS: 200
+RESPONSE: {"data": {"address_details": {}, "einvoice_status": false, "client_id": "corporate_gstin_cjgQudfiiJgrWvvtFowe", "gstin": "03ABECA3510F1ZF", "pan_number": "ABECA3510F", "fy": null, "business_name": "AV MANAGEMENT PRIVATE LIMITED", "legal_name": "AV MANAGEMENT PRIVATE LIMITED", "center_jurisdiction": "State - CBIC,Zone - CHANDIGARH,Commissionerate - LUDHIANA,Division - SANGRUR,Range - RANGE-IV", "state_jurisdiction": "State - Punjab,Division - Patiala,District - Sangrur,Ward - Sangrur - Ward No.2 (Jurisdictional Office)", "date_of_registration": "2025-12-19", "constitution_of_business": "Private Limited Company", "taxpayer_type": "Regular", "gstin_status": "Active", "date_of_cancellation": "1800-01-01", "field_visit_conducted": "No", "nature_bus_activities": ["Supplier of Services"], "nature_of_core_business_activity_code": "SPO", "nature_of_core_business_activity_description": "Service Provider and Others", "aadhaar_validation": "Yes", "aadhaar_validation_date": "2026-01-16", "filing_status": [], "address": "C/O Ram Gopal, Shop No. 54, Anaj Mandi, Dirba, Sangrur, Punjab, 148035", "hsn_info": {}, "filing_frequency": []}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_WhfAOrglosveUHqCeUzl", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/pan/pan-verify
+PAYLOAD: {'id_number': 'PFKPK9634C', 'full_name': 'Rahul Kumar', 'dob': '2001-11-05'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "pan_PzuuKxmCqZZwqtZfYcOy", "pan_number": "PFKPK9634C", "full_name": "RAHUL KUMAR", "dob": "2001-11-05"}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '281017983948'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_dVuuisebojHZhoWkKxju", "age_range": "20-30", "aadhaar_number": "XXXXXXXX3948", "state": "Bihar", "gender": "M", "last_digits": "051", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
+URL: https://kyc-api.surepass.app/api/v1/aadhaar-validation/aadhaar-validation
+PAYLOAD: {'id_number': '869356415354'}
+STATUS: 200
+RESPONSE: {"data": {"client_id": "aadhaar_validation_kncRjvoxjJxanOefqKcw", "age_range": "20-30", "aadhaar_number": "XXXXXXXX5354", "state": "Maharashtra", "gender": "M", "last_digits": "610", "is_mobile": true, "remarks": "success", "less_info": false}, "status_code": 200, "success": true, "message": null, "message_code": "success"}
+
