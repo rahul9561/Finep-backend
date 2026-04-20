@@ -57,7 +57,7 @@ def create_order(request):
             "customer_phone": user.mobile,
         },
         "order_meta": {
-        "return_url": "http://localhost:5173"
+        "return_url": "https://finrep.avmanagement.in/"
     }
     }
 
