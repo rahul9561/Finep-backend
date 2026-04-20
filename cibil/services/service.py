@@ -109,169 +109,129 @@ class CibilService:
     @staticmethod
     @transaction.atomic
     def generate_report(agent, data):
-        # 🔥 identify user type
-        user = agent   # jo pass ho raha hai
 
-        customer = None
+        # =========================
+        # USER IDENTIFY
+        # =========================
+        user = agent
 
-        # if hasattr(user, "created_by") and user.created_by:
-        #     customer = user
-        #     agent = user.created_by
         if hasattr(user, "created_by") and user.created_by:
             customer = user
             agent = user.created_by
         else:
+            customer = None
             agent = user
 
         pan = (data.get("pan") or "").upper().strip()
-        if not pan:
-            return {
-                "success": False,
-                "message": "PAN required"
-            }
         report_type = data.get("report_type")
-
         mobile = str(data.get("mobile") or "").strip()
         name = data.get("name")
 
-        # ✅ PAN validation
-        if not pan or not re.match(r"[A-Z]{5}[0-9]{4}[A-Z]{1}", pan):
+        # =========================
+        # VALIDATION
+        # =========================
+        if not pan:
+            return {"success": False, "message": "PAN required"}
+
+        if not re.match(r"[A-Z]{5}[0-9]{4}[A-Z]{1}", pan):
             return {"success": False, "message": "Invalid PAN format"}
 
-        # ✅ report type validation
         ALLOWED = ["cibil", "crif", "experian", "equifax", "multi"]
 
         if report_type not in ALLOWED:
             return {"success": False, "message": "Invalid report type"}
 
         # =========================
-        # 1️⃣ DUPLICATE CHECK
+        # PREFILL (SAFE)
         # =========================
-
-        # existing = CibilService.check_duplicate(pan, report_type)
-        existing = None
-
-        # if existing and existing.report_pdf:
-        # if existing and existing.report_pdf and existing.status == "SUCCESS":
-        # if existing:
-        #     pass
-
-        #     existing.report_pdf.open("rb")
-        #     file_data = existing.report_pdf.read()
-        #     existing.report_pdf.close()
-            
-        #     price = getattr(plan, f"{report_type}_price", 0)
-
-        #     PlanUsage.objects.create(
-        #         agent=agent,
-        #         report=existing,
-        #         service=report_type,
-        #         price=price
-        #     )
-
-        #     return {
-        #         "success": True,
-        #         "file": file_data,
-        #         "cached": True
-        #     }
-
-        # =========================
-        # 2️⃣ PREFILL CHECK HERE ✅
-        # =========================
+        prefill_data = {}
 
         try:
-
             prefill = BureauClient.fetch_prefill(
                 mobile=mobile,
                 first_name=name
             )
 
             if prefill.get("success"):
-
                 pdata = prefill.get("data", {})
+
+                if isinstance(pdata, list):
+                    pdata = pdata[0] if pdata else {}
+
+                prefill_data = pdata
 
                 prefill_pan = (pdata.get("pan") or "").upper()
 
                 if prefill_pan and pan and prefill_pan != pan:
-
                     return {
                         "success": False,
                         "message": "PAN mismatch with mobile"
                     }
 
         except Exception as e:
-
             logger.error(f"Prefill error: {e}")
-            
-            return {
-                "success": False,
-                "message": "Prefill failed"
-            }
+            prefill_data = {}
 
         # =========================
-        # 3️⃣ PLAN CHECK
+        # PLAN CHECK
         # =========================
-
         agent_plan = AgentPlan.objects.select_for_update().filter(
             agent=agent,
             is_active=True
         ).order_by("created_at")
 
         if not agent_plan.exists():
-            return {
-                "success": False,
-                "message": "Please recharge plan"
-            }
+            return {"success": False, "message": "Please recharge plan"}
 
         active_plan = agent_plan.last()
         plan = active_plan.plan
 
-        # ✅ prices
         plan_price = getattr(plan, f"{report_type}_price", None)
-        # selling_price = get_dynamic_price(customer or agent, report_type)
         selling_price = get_dynamic_price(user, report_type)
 
-        # ✅ validation
         if plan_price is None or plan_price <= 0:
             return {"success": False, "message": "Plan price not configured"}
 
         if selling_price is None or selling_price <= 0:
             return {"success": False, "message": "Invalid report type"}
-        
+
         total_balance = agent_plan.aggregate(
             total=Sum("remaining_balance")
         )["total"] or 0
-        
+
         if total_balance < plan_price:
-            return {
-                "success": False,
-                "message": "Insufficient balance"
-            }
+            return {"success": False, "message": "Insufficient balance"}
 
-        debit_user = customer if customer else user
+        # =========================
+        # CUSTOMER WALLET CHECK
+        # =========================
+        if customer:
+            from wallet.models import Wallet
 
-        wallet_debit(
-            user=debit_user,
-            amount=selling_price,
-            service=report_type,
-            note=f"{report_type} report generated"
+            wallet = Wallet.objects.filter(user=customer).first()
+
+            if not wallet or wallet.balance < selling_price:
+                return {
+                    "success": False,
+                    "message": "Insufficient wallet balance"
+                }
+
+            wallet_debit(
+                user=customer,
+                amount=selling_price,
+                service=report_type,
+                note=f"{report_type} report generated"
+            )
+
+        # =========================
+        # CREATE REPORT
+        # =========================
+        if isinstance(prefill_data, list):
+            prefill_data = prefill_data[0] if prefill_data else {}
+
+        name_value = normalize_name(
+            extract_name(prefill_data, name)
         )
-
-        
-
-        # =========================
-        # 4️⃣ CREATE REPORT RECORD
-        # =========================
-        if not pan:
-            return {
-                "success": False,
-                "message": "Invalid PAN"
-            }
-            
-        prefill_data = prefill.get("data", {}) if prefill else {}
-        name_value = normalize_name(extract_name(prefill_data, name))
-        
-        
 
         report = CibilReport.objects.create(
             agent=agent,
@@ -280,33 +240,24 @@ class CibilService:
             pan=pan,
             report_type=report_type,
             status="PENDING",
-            # request_data=payload 
         )
 
         # =========================
-        # 5️⃣ PAYLOAD
+        # PAYLOAD
         # =========================
-
         gender = (data.get("gender") or "").lower()
 
-
         dob = data.get("dob")
-        # convert dob to YYYY-MM-DD
         if dob:
             try:
                 dob = datetime.strptime(dob, "%d-%m-%Y").strftime("%Y-%m-%d")
             except:
                 dob = None
-                
-        
-        
-        addresses = prefill_data.get("addresses") or []
 
+        addresses = prefill_data.get("addresses") or []
         address = addresses[0] if addresses else None
 
         state, pincode = extract_state_pincode(address)
-
-        
 
         payload = {
             "name": name_value,
@@ -318,7 +269,6 @@ class CibilService:
         }
 
         if report_type == "equifax":
-            
             payload.update({
                 "dob": dob,
                 "address": address,
@@ -327,37 +277,27 @@ class CibilService:
             })
 
         if report_type == "multi":
-
             payload["bureau"] = "ALL"
 
         payload = {k: v for k, v in payload.items() if v}
 
-        logger.info(f"VERIFYAL PAYLOAD: {payload}")
-
         # =========================
-        # 6️⃣ API CALL
+        # API CALL
         # =========================
-
-        result = BureauClient.generate_report(
-            report_type,
-            payload
-        )
+        result = BureauClient.generate_report(report_type, payload)
 
         if not result.get("success"):
+
+            # 🔥 REFUND (ONLY CUSTOMER)
             if customer:
                 from wallet.services import wallet_credit
-                try:
-                    wallet_credit(
-                        user=debit_user, 
-                        amount=selling_price,
-                        service=report_type,
-                        note="Refund (API failed)"
-                    )
-                except Exception as e:
-                    return {
-                        "success": False,
-                        "message": str(e)
-                    }
+
+                wallet_credit(
+                    user=customer,
+                    amount=selling_price,
+                    service=report_type,
+                    note="Refund (API failed)"
+                )
 
             report.status = "FAILED"
             report.response_message = result.get("message")
@@ -369,9 +309,8 @@ class CibilService:
             }
 
         # =========================
-        # 7️⃣ SAVE PDF
+        # SAVE PDF
         # =========================
-
         pdf_file = result.get("file")
 
         report.report_pdf.save(
@@ -383,16 +322,12 @@ class CibilService:
         report.save()
 
         # =========================
-        # 8️⃣ FIFO BALANCE
+        # PLAN DEDUCTION (FIFO)
         # =========================
-
-        # remaining_price = price
         remaining_price = plan_price
 
         for p in agent_plan:
-
             if p.remaining_balance >= remaining_price:
-
                 p.remaining_balance -= remaining_price
 
                 if p.remaining_balance == 0:
@@ -400,33 +335,27 @@ class CibilService:
 
                 p.save()
                 break
-
             else:
-
                 remaining_price -= p.remaining_balance
                 p.remaining_balance = 0
                 p.is_active = False
                 p.save()
 
         # =========================
-        # 9️⃣ USAGE
+        # USAGE LOG
         # =========================
-        
-        # profit = selling_price - plan_price
         profit = max(selling_price - plan_price, 0)
-
-        if profit < 0:
-            profit = 0
 
         PlanUsage.objects.create(
             agent=agent,
+            customer=customer,
             report=report,
             service=report_type,
-            cost_price=plan_price,   # 🔥 ADD THIS
+            cost_price=plan_price,
             price=selling_price,
             status="SUCCESS",
             profit=profit,
-            reference_id = f"{report_type.upper()}-{uuid.uuid4().hex[:10]}"
+            reference_id=f"{report_type.upper()}-{uuid.uuid4().hex[:10]}"
         )
 
         return {

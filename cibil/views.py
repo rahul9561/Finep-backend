@@ -1160,6 +1160,65 @@ class AgentDashboardAPIView(APIView):
         })
         
         
+# class CustomerPricingAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+
+#         user = request.user
+#         agent = user.created_by if user.role == "customer" else user
+
+#         SERVICES = [
+#             "prefill",
+#             "cibil",
+#             "experian",
+#             "crif",
+#             "equifax",
+#             "aadhaar",
+#             "pan",
+#             "gst",
+#             "bank",
+#             "msme",
+#             "rc",
+#             "electricity",
+#         ]
+
+#         # 🔥 correct mapping
+#         SERVICE_MAP = {
+#             "pan": "pan_verify",
+#             "gst": "gst_verify",
+#             "bank": "bank_verify",
+#             "aadhaar": "aadhaar_verify",  # only if supported
+#         }
+
+#         data = []
+
+#         for service in SERVICES:
+
+#             mapped_service = SERVICE_MAP.get(service, service)
+
+#             price = 0
+
+#             try:
+#                 price = get_dynamic_price(user, mapped_service)
+#             except Exception:
+#                 price = 0
+
+#             # 🔥 skip unknown services (OPTIONAL)
+#             if price == 0:
+#                 continue
+
+#             data.append({
+#                 "service": service,
+#                 "price": price
+#             })
+
+#         return Response({
+#             "status": True,
+#             "count": len(data),
+#             "data": data
+#         })
+
 class CustomerPricingAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
@@ -1183,12 +1242,11 @@ class CustomerPricingAPIView(APIView):
             "electricity",
         ]
 
-        # 🔥 correct mapping
         SERVICE_MAP = {
             "pan": "pan_verify",
             "gst": "gst_verify",
             "bank": "bank_verify",
-            "aadhaar": "aadhaar_verify",  # only if supported
+            "aadhaar": "aadhaar_verify",
         }
 
         data = []
@@ -1197,20 +1255,20 @@ class CustomerPricingAPIView(APIView):
 
             mapped_service = SERVICE_MAP.get(service, service)
 
-            price = 0
+            # 🔥 ONLY AGENT-SET PRICE
+            custom_price = AgentCibilPricing.objects.filter(
+                agent=agent,
+                customer=user if user.role == "customer" else None,
+                service=mapped_service
+            ).order_by("-id").first()
 
-            try:
-                price = get_dynamic_price(user, mapped_service)
-            except Exception:
-                price = 0
-
-            # 🔥 skip unknown services (OPTIONAL)
-            if price == 0:
+            if not custom_price:
                 continue
 
             data.append({
                 "service": service,
-                "price": price
+                "price": custom_price.price,
+                "is_custom": True
             })
 
         return Response({
