@@ -1276,3 +1276,225 @@ class CustomerPricingAPIView(APIView):
             "count": len(data),
             "data": data
         })
+        
+        
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .services.surepassservices import SureCibilService
+from cibil.models import CibilReport
+
+
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def surepassgenerate_cibil_report(request):
+
+#     agent = request.user
+#     data = request.data
+
+#     pan = (data.get("pan") or "").upper().strip()
+#     report_type = data.get("report_type")
+
+#     result = SureCibilService.generate_report(agent, data)
+
+#     # ❌ FAILED
+#     if not result.get("success"):
+#         return Response(
+#             {
+#                 "success": False,
+#                 "message": result.get("message")
+#             },
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     # ✅ FETCH LATEST REPORT
+#     report = CibilReport.objects.filter(
+#         agent=agent,
+#         pan=pan,
+#         report_type=report_type,
+#         status="SUCCESS"
+#     ).order_by("-created_at").first()
+
+#     if not report or not report.report_pdf:
+#         return Response(
+#             {
+#                 "success": False,
+#                 "message": "Report generated but PDF not found"
+#             },
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+
+#     # 🔥 MAIN FIX (IMPORTANT)
+#     pdf_url = request.build_absolute_uri(report.report_pdf.url)
+
+#     return Response(
+#         {
+#             "success": True,
+#             "message": "Report generated successfully",
+#             "pdf_url": pdf_url
+#         },
+#         status=status.HTTP_200_OK
+#     )
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .services.surepassservices import SureCibilService
+from cibil.models import CibilReport
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def surepassgenerate_cibil_report(request):
+
+    user = request.user
+    data = request.data
+
+    pan = (data.get("pan") or "").upper().strip()
+    report_type = data.get("report_type")
+
+    # =========================
+    # GENERATE REPORT
+    # =========================
+    result = SureCibilService.generate_report(user, data)
+
+    # ❌ FAILED
+    if not result.get("success"):
+        return Response(
+            {
+                "success": False,
+                "message": result.get("message")
+            },
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # =========================
+    # FETCH LATEST REPORT
+    # =========================
+    report = CibilReport.objects.filter(
+        agent=user if not hasattr(user, "created_by") else user.created_by,
+        pan=pan,
+        report_type=report_type,
+        status="SUCCESS"
+    ).order_by("-created_at").first()
+
+    # ❌ REPORT NOT FOUND
+    if not report:
+        return Response(
+            {
+                "success": False,
+                "message": "Report not found"
+            },
+            status=status.HTTP_500_INTERNAL_SERVER_ERROR
+        )
+
+    # =========================
+    # CASE 1: PDF AVAILABLE
+    # =========================
+    if report.report_pdf:
+        pdf_url = request.build_absolute_uri(report.report_pdf.url)
+
+        return Response(
+            {
+                "success": True,
+                "message": "Report generated successfully",
+                "pdf_url": pdf_url
+            },
+            status=status.HTTP_200_OK
+        )
+
+    # =========================
+    # CASE 2: PDF NOT SAVED (EXPERIAN SAFE CASE)
+    # =========================
+    return Response(
+        {
+            "success": True,
+            "message": "Report generated successfully (PDF processing or unavailable)",
+            "pdf_url": None
+        },
+        status=status.HTTP_200_OK
+    )
+# from rest_framework.decorators import api_view, permission_classes
+# from rest_framework.permissions import IsAuthenticated
+# from rest_framework.response import Response
+# from rest_framework import status
+# from .services.surepassservices import SureCibilService
+# from cibil.models import CibilReport
+# import logging
+
+# logger = logging.getLogger(__name__)
+
+
+# @api_view(["POST"])
+# @permission_classes([IsAuthenticated])
+# def surepassgenerate_cibil_report(request):
+
+#     agent = request.user
+#     data = request.data
+
+#     pan = (data.get("pan") or "").upper().strip()
+#     report_type = data.get("report_type")
+
+#     logger.info(f"[API INPUT] agent={agent}, data={data}")
+
+#     result = SureCibilService.generate_report(agent, data)
+
+#     # 🔥 DEBUG FULL RESULT
+#     logger.error(f"[SERVICE RESULT] {result}")
+
+#     # ❌ FAILED
+#     if not result.get("success"):
+#         return Response(
+#             {
+#                 "success": False,
+#                 "message": result.get("message"),
+
+#                 # 🔥 DEBUG ADDITIONS
+#                 "debug": {
+#                     "report_type": report_type,
+#                     "pan": pan,
+#                     "service_raw": result.get("raw"),   # full API response
+#                 }
+#             },
+#             status=status.HTTP_400_BAD_REQUEST
+#         )
+
+#     # ✅ FETCH LATEST REPORT
+#     report = CibilReport.objects.filter(
+#         agent=agent,
+#         pan=pan,
+#         report_type=report_type,
+#         status="SUCCESS"
+#     ).order_by("-created_at").first()
+
+#     if not report or not report.report_pdf:
+#         logger.error("[PDF ERROR] Report exists but file missing")
+
+#         return Response(
+#             {
+#                 "success": False,
+#                 "message": "Report generated but PDF not found",
+#                 "debug": {
+#                     "report_found": bool(report),
+#                     "has_pdf": bool(report and report.report_pdf)
+#                 }
+#             },
+#             status=status.HTTP_500_INTERNAL_SERVER_ERROR
+#         )
+
+#     # 🔥 MAIN FIX
+#     pdf_url = request.build_absolute_uri(report.report_pdf.url)
+
+#     logger.info(f"[SUCCESS] PDF URL: {pdf_url}")
+
+#     return Response(
+#         {
+#             "success": True,
+#             "message": "Report generated successfully",
+#             "pdf_url": pdf_url
+#         },
+#         status=status.HTTP_200_OK
+#     )

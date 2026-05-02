@@ -146,31 +146,6 @@ class CibilService:
         # =========================
         prefill_data = {}
 
-        try:
-            prefill = BureauClient.fetch_prefill(
-                mobile=mobile,
-                first_name=name
-            )
-
-            if prefill.get("success"):
-                pdata = prefill.get("data", {})
-
-                if isinstance(pdata, list):
-                    pdata = pdata[0] if pdata else {}
-
-                prefill_data = pdata
-
-                prefill_pan = (pdata.get("pan") or "").upper()
-
-                if prefill_pan and pan and prefill_pan != pan:
-                    return {
-                        "success": False,
-                        "message": "PAN mismatch with mobile"
-                    }
-
-        except Exception as e:
-            logger.error(f"Prefill error: {e}")
-            prefill_data = {}
 
         # =========================
         # PLAN CHECK
@@ -241,6 +216,21 @@ class CibilService:
             report_type=report_type,
             status="PENDING",
         )
+        
+        # =========================
+        # EQUIFAX VALIDATION (ADD HERE)
+        # =========================
+        if report_type == "equifax":
+
+            required_fields = ["dob", "address", "state", "pincode"]
+
+            missing = [f for f in required_fields if not data.get(f)]
+
+            if missing:
+                return {
+                    "success": False,
+                    "message": f"Missing fields: {', '.join(missing)}"
+                }
 
         # =========================
         # PAYLOAD
@@ -270,11 +260,12 @@ class CibilService:
 
         if report_type == "equifax":
             payload.update({
-                "dob": dob,
-                "address": address,
-                "state": state,
-                "pincode": pincode,
+                "dob": data.get("dob"),
+                "address": data.get("address"),
+                "state": data.get("state"),
+                "pincode": data.get("pincode"),
             })
+            
 
         if report_type == "multi":
             payload["bureau"] = "ALL"

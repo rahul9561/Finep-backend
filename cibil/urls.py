@@ -55,10 +55,12 @@ urlpatterns = [
         SetCibilPricingView.as_view()
     ),
     
+    path("generate/report-pdf/",surepassgenerate_cibil_report),
+    
     path("customer-pricing/",CustomerPricingAPIView.as_view(), name="customer-pricing"),
     
     
-     path(
+    path(
         "admin/prefill/",
         AdminPrefillView.as_view()
     ),

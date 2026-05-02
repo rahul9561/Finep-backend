@@ -1,6 +1,6 @@
 from django.contrib import admin
 from .models import Wallet, WalletTransaction, WalletLedger
-
+import uuid
 
 # ---------------- WALLET ----------------
 
@@ -53,7 +53,8 @@ class WalletAdmin(admin.ModelAdmin):
 
             txn = WalletTransaction.objects.create(
                 user=obj.user,
-                reference_id=f"ADMIN-CREDIT-{obj.id}",
+                # reference_id=f"ADMIN-CREDIT-{obj.id}",
+                reference_id=f"ADMIN-CREDIT-{uuid.uuid4().hex[:10].upper()}",
                 amount=diff,
                 txn_type="credit",
                 service="ADMIN",
@@ -77,7 +78,8 @@ class WalletAdmin(admin.ModelAdmin):
 
             txn = WalletTransaction.objects.create(
                 user=obj.user,
-                reference_id=f"ADMIN-DEBIT-{obj.id}",
+                # reference_id=f"ADMIN-DEBIT-{obj.id}",
+                reference_id=f"ADMIN-DEBIT-{uuid.uuid4().hex[:10].upper()}",
                 amount=diff,
                 txn_type="debit",
                 service="ADMIN",
