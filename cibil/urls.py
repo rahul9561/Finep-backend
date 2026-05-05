@@ -69,7 +69,13 @@ urlpatterns = [
         "admin/generate/",
         AdminGenerateReportView.as_view()
     ),
+    
+    path("generate-adv/", generate_cibil_report),
+    path("only-score/", only_score_check),
 
     path("", include(router.urls)),
 ]
+
+
+
 

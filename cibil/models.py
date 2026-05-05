@@ -17,6 +17,9 @@ class CibilReport(models.Model):
         ("equifax", "Equifax"),
         ("crif", "CRIF"),
         ('prefill', 'Prefill'),
+        ("cibil_advanced", "CIBIL Advanced"),   # ✅ FIX
+        ("only_score", "Only Score"),     
+        
     )
 
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
@@ -85,7 +88,8 @@ class RechargePlan(models.Model):
     pan_verify_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     gst_verify_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     bank_verify_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
-
+    cibil_advanced_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
+    only_score_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     cibil_commercial = models.DecimalField(max_digits=10, decimal_places=2)
 
     is_active = models.BooleanField(default=True)
@@ -190,6 +194,8 @@ class AgentCibilPricing(models.Model):
         ("pan_verify", "PAN Verify"),
         ("gst_verify", "GST Verify"),
         ("bank_verify", "Bank Verify"),
+        ("cibil_advanced", "Cibil Advanced"),
+        ("only_score", "Only Score Check"),
     ]
 
     agent = models.ForeignKey(

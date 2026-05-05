@@ -1498,3 +1498,48 @@ def surepassgenerate_cibil_report(request):
 #         },
 #         status=status.HTTP_200_OK
 #     )
+
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+from .services.BeFiScServices import BeFicCibilService
+from cibil.models import CibilReport
+
+
+def handle_cibil(request, report_type):
+
+    data = {
+        "pan": request.data.get("pan"),
+        "mobile": request.data.get("mobile"),
+        "report_type": report_type,
+    }
+
+    # ✅ name only for full report
+    if report_type == "cibil_advanced":
+        name = request.data.get("name")
+        if not name:
+            return Response(
+                {"success": False, "message": "Name required"},
+                status=status.HTTP_400_BAD_REQUEST
+            )
+        data["name"] = name
+
+    result = BeFicCibilService.generate_report(request.user, data)
+
+    if not result.get("success"):
+        return Response(result, status=status.HTTP_400_BAD_REQUEST)
+
+    return Response(result, status=status.HTTP_200_OK)
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def generate_cibil_report(request):
+    return handle_cibil(request, "cibil_advanced")
+
+
+@api_view(["POST"])
+@permission_classes([IsAuthenticated])
+def only_score_check(request):
+    return handle_cibil(request, "only_score")
