@@ -82,8 +82,13 @@ class SmartAuthClient:
             payload_builder = self.payload_builders.get(service_type)
             if not payload_builder:
                 raise ValueError("Payload builder not found")
+            
+            if service_type == "only_score":
+                payload = payload_builder(mobile, pan)
+            else:
+                payload = payload_builder(name, mobile, pan)
 
-            payload = payload_builder(name, mobile, pan)
+            # payload = payload_builder(name, mobile, pan)
 
             headers = {
                 "authkey": self.authkey,
@@ -94,10 +99,17 @@ class SmartAuthClient:
                 url,
                 json=payload,
                 headers=headers,
-                timeout=70
+                timeout=60
             )
 
             logger.info(f"{service_type} Response: {response.text}")
+            
+            
+            if response.status_code == 504:
+                return {
+                    "status": False,
+                    "message": "Bureau server timeout. Please try again later."
+                }
 
             if response.status_code != 200:
                 return {
@@ -106,6 +118,7 @@ class SmartAuthClient:
                 }
 
             data = response.json()
+            print("FULL API RESPONSE =>", data)
 
             if data.get("status") != 1:
                 return {
@@ -131,12 +144,14 @@ class SmartAuthClient:
 
             elif service_type == "only_score":
                 result = data.get("result", {})
+                
                 parsed_data = {
                     "full_name": result.get("full_name"),
                     "dob": result.get("dob"),
                     "gender": result.get("gender"),
                     "aadhaar_linked": result.get("aadhaar_linked"),
                     "fin_score": result.get("fin_score"),
+                     "address": result.get("address"),
                 }
 
             return {

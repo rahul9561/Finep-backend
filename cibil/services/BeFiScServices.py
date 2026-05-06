@@ -163,8 +163,7 @@ class BeFicCibilService:
         # =========================
         report = CibilReport.objects.create(
             agent=agent,
-            customer=customer,
-            name=name,
+            name=name or "Unknown",
             mobile=mobile,
             pan=pan,
             report_type=report_type,

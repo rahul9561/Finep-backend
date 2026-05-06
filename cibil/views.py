@@ -1063,16 +1063,7 @@ class SetCibilPricingView(APIView):
             if not customer:
                 return Response({"message": "Customer not found"}, status=404)
 
-        # services = [
-        #     "prefill",
-        #     "cibil",
-        #     "experian",
-        #     "crif",
-        #     "equifax",
-        #     "pan_verify",
-        #     "gst_verify",
-        #     "bank_verify"
-        # ]
+      
         services = [choice[0] for choice in AgentCibilPricing.SERVICE_CHOICES]
 
         result = []
@@ -1237,6 +1228,8 @@ class CustomerPricingAPIView(APIView):
             "pan",
             "gst",
             "bank",
+            "cibil_advanced",
+            "only_score",
             "msme",
             "rc",
             "electricity",
@@ -1507,22 +1500,62 @@ from .services.BeFiScServices import BeFicCibilService
 from cibil.models import CibilReport
 
 
+import re
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+from rest_framework import status
+
+
 def handle_cibil(request, report_type):
 
+    pan = (request.data.get("pan") or "").upper().strip()
+    mobile = str(request.data.get("mobile") or "").strip()
+
+    # ✅ PAN Validation
+    if not pan:
+        return Response(
+            {"success": False, "message": "PAN required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    pan_regex = r"^[A-Z]{5}[0-9]{4}[A-Z]{1}$"
+
+    if not re.match(pan_regex, pan):
+        return Response(
+            {"success": False, "message": "Invalid PAN number"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    # ✅ Mobile Validation
+    if not mobile:
+        return Response(
+            {"success": False, "message": "Mobile required"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
+    if len(mobile) != 10 or not mobile.isdigit():
+        return Response(
+            {"success": False, "message": "Invalid mobile number"},
+            status=status.HTTP_400_BAD_REQUEST
+        )
+
     data = {
-        "pan": request.data.get("pan"),
-        "mobile": request.data.get("mobile"),
+        "pan": pan,
+        "mobile": mobile,
         "report_type": report_type,
     }
 
-    # ✅ name only for full report
+    # ✅ Name required only for full report
     if report_type == "cibil_advanced":
-        name = request.data.get("name")
+        name = (request.data.get("name") or "").strip()
+
         if not name:
             return Response(
                 {"success": False, "message": "Name required"},
                 status=status.HTTP_400_BAD_REQUEST
             )
+
         data["name"] = name
 
     result = BeFicCibilService.generate_report(request.user, data)
