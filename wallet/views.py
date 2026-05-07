@@ -2,7 +2,7 @@ import uuid
 import json
 import requests
 from decimal import Decimal
-
+import re
 from django.conf import settings
 from django.http import HttpResponse
 from django.views.decorators.csrf import csrf_exempt
@@ -46,6 +46,16 @@ def create_order(request):
     )
 
     url = f"{settings.CASHFREE_BASE_URL}/pg/orders"
+    
+    phone = re.sub(r"\D", "", str(user.mobile or ""))
+    
+    if len(phone) == 10:
+        phone = f"+91{phone}"
+        
+    if not phone:
+        return Response({
+            "message": "Invalid mobile number"
+        }, status=400)
 
     payload = {
         "order_id": order_id,
@@ -54,7 +64,7 @@ def create_order(request):
         "customer_details": {
             "customer_id": str(user.id),
             "customer_email": user.email,
-            "customer_phone": user.mobile,
+            "customer_phone": phone,
         },
         "order_meta": {
         "return_url": "https://finrep.avmanagement.in/"
