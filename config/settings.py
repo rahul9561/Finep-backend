@@ -40,6 +40,7 @@ INSTALLED_APPS = [
     'eduloans',
     'agent',
     'verification',
+    'esign' ,
 
 ]
 
@@ -217,3 +218,10 @@ CASHFREE_CLIENT_SECRET = os.getenv("CASHFREE_CLIENT_SECRET")
 
 BUREAU_B_AUTHKEY = "G0RQOK83QF5J6C6"
 BUREAU_B_BASE_URL = "https://prod.smartauth.co"
+
+
+
+LEEGALITY_BASE_URL = os.getenv("LEEGALITY_BASE_URL")
+LEEGALITY_AUTH_TOKEN = os.getenv("LEEGALITY_AUTH_TOKEN")
+LEEGALITY_PRIVATE_SALT = os.getenv("LEEGALITY_PRIVATE_SALT")
+LEEGALITY_PROFILE_ID = os.getenv("LEEGALITY_PROFILE_ID")
