@@ -32,6 +32,35 @@ class LeegalityDocument(models.Model):
         unique=True,
         db_index=True
     )
+    cost_price = models.DecimalField(
+    max_digits=10,
+    decimal_places=2,
+    default=0
+    )
+
+    selling_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    profit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    reference_id = models.CharField(
+        max_length=255,
+        unique=True,
+        null=True,
+        blank=True
+    )
+
+    raw_response = models.JSONField(
+        null=True,
+        blank=True
+    )
 
     signer_name = models.CharField(
         max_length=255

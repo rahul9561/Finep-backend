@@ -18,6 +18,7 @@ urlpatterns = [
     path("api/dashboard/",include("dashboard.urls")),
     path("api/verification/",include("verification.urls")), 
     path("api/esign/",include("esign.urls")),   
+    path("api/digitalverifications/",include("digitalverifications.urls")),
     
     # 🔥 Schema
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),

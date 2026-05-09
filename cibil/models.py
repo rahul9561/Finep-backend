@@ -91,6 +91,17 @@ class RechargePlan(models.Model):
     cibil_advanced_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     only_score_price = models.DecimalField(max_digits=10, decimal_places=2, default=0)
     cibil_commercial = models.DecimalField(max_digits=10, decimal_places=2)
+    mobile360_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+    
+    leegality_esign_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
 
     is_active = models.BooleanField(default=True)
 
@@ -196,6 +207,8 @@ class AgentCibilPricing(models.Model):
         ("bank_verify", "Bank Verify"),
         ("cibil_advanced", "Cibil Advanced"),
         ("only_score", "Only Score Check"),
+        ("mobile360", "Mobile360"),
+        ("leegality_esign", "Leegality eSign"),
     ]
 
     agent = models.ForeignKey(

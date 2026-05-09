@@ -1,8 +1,181 @@
+# from django.shortcuts import render
+# import base64
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from rest_framework import status
+
+# from .models import LeegalityDocument
+
+# from .services.leegality_service import (
+#     LeegalityService
+# )
+
+
+# # =====================================
+# # CREATE SIGN REQUEST
+# # =====================================
+
+# # CREATE SIGN REQUEST VIEW
+# from django.conf import settings
+
+# class CreateLeegalitySignAPIView(APIView):
+
+#     def post(self, request):
+
+#         pdf_file = request.FILES.get("file")
+
+#         if not pdf_file:
+
+#             return Response(
+#                 {
+#                     "error": "PDF file required"
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         signer_name = request.data.get("name")
+
+#         signer_email = request.data.get("email")
+
+#         signer_phone = request.data.get("phone")
+
+#         irn = request.data.get(
+#             "irn",
+#             "ORDER_1001"
+#         )
+
+#         # PDF -> Base64
+#         base64_pdf = base64.b64encode(
+#             pdf_file.read()
+#         ).decode("utf-8")
+
+#         service = LeegalityService()
+
+#         response = service.create_sign_request(
+
+#             file_name=pdf_file.name,
+
+#             base64_file=base64_pdf,
+
+#             signer_name=signer_name,
+
+#             signer_email=signer_email,
+
+#             signer_phone=signer_phone,
+
+#             irn=irn
+#         )
+
+#         print(response)
+
+#         # MAIN DATA
+#         # data = response.get("data", {})
+#         data = response.get("data", {}).get("data", {})
+
+#         # DOCUMENT ID
+#         document_id = data.get(
+#             "documentId"
+#         )
+
+#         if not document_id:
+
+#             return Response(
+#                 {
+#                     "success": False,
+#                     "message": "Document creation failed",
+#                     "response": response
+#                 },
+#                 status=400
+#             )
+
+#         # INVITEES
+#         invitees = data.get(
+#             "invitees",
+#             []
+#         )
+
+#         sign_url = None
+
+#         expiry_date = None
+
+#         if invitees:
+
+#             sign_url = invitees[0].get(
+#                 "signUrl"
+#             )
+
+#             expiry_date = invitees[0].get(
+#                 "expiryDate"
+#             )
+
+#         # SAVE DB
+#         leegality_doc = (
+#             LeegalityDocument.objects.create(
+
+#                 profile_id=settings.LEEGALITY_PROFILE_ID,
+
+#                 document_id=document_id,
+
+#                 irn=irn,
+
+#                 signer_name=signer_name,
+
+#                 signer_email=signer_email,
+
+#                 signer_phone=signer_phone,
+
+#                 file_name=pdf_file.name,
+
+#                 sign_url=sign_url,
+
+#                 status="PENDING"
+#             )
+#         )
+
+#         return Response({
+
+#             "success": True,
+
+#             "message": "Sign request created successfully",
+
+#             "document_id": document_id,
+
+#             "sign_url": sign_url,
+
+#             "expiry_date": expiry_date,
+
+#             "response": response
+#         })
+
+# views.py
+
 from django.shortcuts import render
 import base64
+
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
+from rest_framework.parsers import (
+    MultiPartParser,
+    FormParser
+)
+from django.conf import settings
+from django.db import transaction
+from django.db.models import Sum
+
+from decimal import Decimal
+import uuid
+
+from wallet.models import Wallet
+from wallet.services import (
+    wallet_debit,
+    wallet_credit
+)
+
+from cibil.models import (
+    AgentPlan,
+    AgentCibilPricing
+)
 
 from .models import LeegalityDocument
 
@@ -11,16 +184,76 @@ from .services.leegality_service import (
 )
 
 
-# =====================================
+# =====================================================
+# GET SELLING PRICE
+# =====================================================
+def get_leegality_price(user):
+
+    if hasattr(user, "created_by") and user.created_by:
+        agent = user.created_by
+        customer = user
+    else:
+        agent = user
+        customer = None
+
+    # CUSTOMER CUSTOM PRICE
+    if customer:
+
+        custom = AgentCibilPricing.objects.filter(
+            agent=agent,
+            customer=customer,
+            service="leegality_esign"
+        ).order_by("-id").first()
+
+        if custom:
+            return custom.price
+
+    # AGENT DEFAULT PRICE
+    agent_price = AgentCibilPricing.objects.filter(
+        agent=agent,
+        customer__isnull=True,
+        service="leegality_esign"
+    ).order_by("-id").first()
+
+    if agent_price:
+        return agent_price.price
+
+    # FALLBACK PLAN PRICE
+    plan = AgentPlan.objects.filter(
+        agent=agent,
+        is_active=True
+    ).last()
+
+    if plan:
+        return plan.plan.leegality_esign_price
+
+    return 0
+
+
+# =====================================================
 # CREATE SIGN REQUEST
-# =====================================
-
-# CREATE SIGN REQUEST VIEW
-from django.conf import settings
-
+# =====================================================
 class CreateLeegalitySignAPIView(APIView):
+    
+    parser_classes = (
+        MultiPartParser,
+        FormParser
+    )
 
+    @transaction.atomic
     def post(self, request):
+
+        user = request.user
+
+        # =====================================
+        # USER IDENTIFY
+        # =====================================
+        if hasattr(user, "created_by") and user.created_by:
+            customer = user
+            agent = user.created_by
+        else:
+            customer = None
+            agent = user
 
         pdf_file = request.FILES.get("file")
 
@@ -38,17 +271,117 @@ class CreateLeegalitySignAPIView(APIView):
         signer_email = request.data.get("email")
 
         signer_phone = request.data.get("phone")
+        
+        if not signer_name or not signer_email or not signer_phone:
 
-        irn = request.data.get(
-            "irn",
-            "ORDER_1001"
-        )
+            return Response(
+                {
+                    "success": False,
+                    "message": "Name, email and phone are required"
+                },
+                status=400
+            )
 
-        # PDF -> Base64
+        # irn = request.data.get(
+        #     "irn",
+        #     "ORDER_1001"
+        # )
+        irn = f"ESIGN-{uuid.uuid4().hex[:10]}"
+
+        # =====================================
+        # PLAN CHECK
+        # =====================================
+        agent_plan = AgentPlan.objects.select_for_update().filter(
+            agent=agent,
+            is_active=True
+        ).order_by("created_at")
+
+        if not agent_plan.exists():
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Please recharge plan"
+                },
+                status=400
+            )
+
+        active_plan = agent_plan.last()
+
+        # =====================================
+        # COST PRICE
+        # =====================================
+        cost_price = active_plan.plan.leegality_esign_price
+
+        if not cost_price or cost_price <= 0:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Leegality price not configured"
+                },
+                status=400
+            )
+
+        # =====================================
+        # SELLING PRICE
+        # =====================================
+        selling_price = get_leegality_price(user)
+
+        # =====================================
+        # BALANCE CHECK
+        # =====================================
+        total_balance = agent_plan.aggregate(
+            total=Sum("remaining_balance")
+        )["total"] or 0
+
+        if total_balance < cost_price:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Insufficient balance"
+                },
+                status=400
+            )
+
+        # =====================================
+        # CUSTOMER WALLET CHECK
+        # =====================================
+        if customer:
+
+            wallet = Wallet.objects.filter(
+                user=customer
+            ).first()
+
+            if not wallet or wallet.balance < selling_price:
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": "Insufficient wallet balance"
+                    },
+                    status=400
+                )
+
+            # CUSTOMER DEBIT
+            wallet_debit(
+                user=customer,
+                amount=selling_price,
+                service="leegality_esign",
+                note="Leegality Aadhaar eSign"
+            )
+
+        # =====================================
+        # PDF -> BASE64
+        # =====================================
         base64_pdf = base64.b64encode(
             pdf_file.read()
         ).decode("utf-8")
 
+        # =====================================
+        # API CALL
+        # =====================================
         service = LeegalityService()
 
         response = service.create_sign_request(
@@ -68,16 +401,27 @@ class CreateLeegalitySignAPIView(APIView):
 
         print(response)
 
-        # MAIN DATA
-        # data = response.get("data", {})
-        data = response.get("data", {}).get("data", {})
-
-        # DOCUMENT ID
-        document_id = data.get(
-            "documentId"
+        data = response.get(
+            "data",
+            {}
+        ).get(
+            "data",
+            {}
         )
 
-        if not document_id:
+        # =====================================
+        # FAILED => REFUND
+        # =====================================
+        if response.get("status_code") != 200:
+
+            if customer:
+
+                wallet_credit(
+                    user=customer,
+                    amount=selling_price,
+                    service="leegality_esign",
+                    note="Refund Aadhaar eSign failed"
+                )
 
             return Response(
                 {
@@ -88,7 +432,64 @@ class CreateLeegalitySignAPIView(APIView):
                 status=400
             )
 
+        # =====================================
+        # DOCUMENT ID
+        # =====================================
+        document_id = data.get(
+            "documentId"
+        )
+
+        if not document_id:
+
+            if customer:
+
+                wallet_credit(
+                    user=customer,
+                    amount=selling_price,
+                    service="leegality_esign",
+                    note="Refund Aadhaar eSign failed"
+                )
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Document creation failed",
+                    "response": response
+                },
+                status=400
+            )
+
+        # =====================================
+        # AGENT BALANCE DEDUCT
+        # =====================================
+        remaining_price = Decimal(cost_price)
+
+        for p in agent_plan:
+
+            if p.remaining_balance >= remaining_price:
+
+                p.remaining_balance -= remaining_price
+
+                if p.remaining_balance == 0:
+                    p.is_active = False
+
+                p.save()
+
+                break
+
+            else:
+
+                remaining_price -= p.remaining_balance
+
+                p.remaining_balance = 0
+
+                p.is_active = False
+
+                p.save()
+
+        # =====================================
         # INVITEES
+        # =====================================
         invitees = data.get(
             "invitees",
             []
@@ -108,9 +509,21 @@ class CreateLeegalitySignAPIView(APIView):
                 "expiryDate"
             )
 
+        # =====================================
+        # PROFIT
+        # =====================================
+        profit = max(
+            Decimal(selling_price) - Decimal(cost_price),
+            0
+        )
+
+        # =====================================
         # SAVE DB
+        # =====================================
         leegality_doc = (
             LeegalityDocument.objects.create(
+
+                agent=agent,
 
                 profile_id=settings.LEEGALITY_PROFILE_ID,
 
@@ -128,7 +541,17 @@ class CreateLeegalitySignAPIView(APIView):
 
                 sign_url=sign_url,
 
-                status="PENDING"
+                status="PENDING",
+
+                cost_price=cost_price,
+
+                selling_price=selling_price,
+
+                profit=profit,
+
+                reference_id=f"ESIGN-{uuid.uuid4().hex[:10]}",
+
+                raw_response=data
             )
         )
 
@@ -143,6 +566,12 @@ class CreateLeegalitySignAPIView(APIView):
             "sign_url": sign_url,
 
             "expiry_date": expiry_date,
+
+            "cost_price": cost_price,
+
+            "selling_price": selling_price,
+
+            "profit": profit,
 
             "response": response
         })
