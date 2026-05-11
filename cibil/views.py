@@ -1569,7 +1569,18 @@ def handle_cibil(request, report_type):
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def generate_cibil_report(request):
-    return handle_cibil(request, "cibil_advanced")
+
+    print("========== REQUEST DATA ==========")
+    print(request.data)
+    print("==================================")
+
+    response = handle_cibil(request, "cibil_advanced")
+
+    print("========== RESPONSE ==========")
+    print(response.data)
+    print("==================================")
+
+    return response
 
 
 @api_view(["POST"])
