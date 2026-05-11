@@ -3,7 +3,9 @@ from datetime import timedelta, datetime
 from django.db import transaction
 from django.db.models import Sum
 from django.core.files.base import ContentFile
-
+from django.core.files.base import ContentFile
+import requests
+import base64
 from cibil.models import CibilReport, AgentPlan, PlanUsage, AgentCibilPricing
 from wallet.services import wallet_debit, wallet_credit
 from .BeFiSc import SmartAuthClient
@@ -209,6 +211,30 @@ class BeFicCibilService:
         # =========================
         report.status = "SUCCESS"
         report.response_message = "Success"
+        # PDF URL case
+        pdf_url = api_response.get("pdf_url")
+
+        if pdf_url:
+            response = requests.get(pdf_url)
+
+            if response.status_code == 200:
+                report.report_pdf.save(
+                    f"{pan}.pdf",
+                    ContentFile(response.content),
+                    save=False
+                )
+
+        # BASE64 PDF case
+        pdf_base64 = api_response.get("pdf_base64")
+
+        if pdf_base64:
+            pdf_content = base64.b64decode(pdf_base64)
+
+            report.report_pdf.save(
+                f"{pan}.pdf",
+                ContentFile(pdf_content),
+                save=False
+            )
         report.save()
 
         # =========================
