@@ -72,6 +72,11 @@ urlpatterns = [
     
     path("generate-adv/", generate_cibil_report),
     path("only-score/", only_score_check),
+    
+    path(
+    "agent/customer-pricing/",
+    get_customer_pricing
+),
 
     path("", include(router.urls)),
 ]

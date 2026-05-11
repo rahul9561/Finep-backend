@@ -1587,3 +1587,50 @@ def generate_cibil_report(request):
 @permission_classes([IsAuthenticated])
 def only_score_check(request):
     return handle_cibil(request, "only_score")
+
+
+
+
+# api price views for admin/agent
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated
+from rest_framework.response import Response
+
+from accounts.models import User
+from cibil.models import AgentCibilPricing
+
+
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def get_customer_pricing(request):
+
+    agent = request.user
+
+    if agent.role != "agent":
+        return Response({
+            "success": False,
+            "message": "Only agent allowed"
+        }, status=403)
+
+    pricings = AgentCibilPricing.objects.filter(
+        agent=agent
+    ).select_related("customer")
+
+    data = []
+
+    for item in pricings:
+        data.append({
+            "id": item.id,
+            "customer_id": item.customer.id if item.customer else None,
+            "customer_name": item.customer.username if item.customer else "Default",
+            "customer_code": item.customer.user_code if item.customer else None,
+            "service": item.service,
+            "price": str(item.price),
+            "created_at": item.created_at,
+        })
+
+    return Response({
+        "success": True,
+        "count": len(data),
+        "data": data
+    })
