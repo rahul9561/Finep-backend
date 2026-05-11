@@ -183,6 +183,9 @@ class BeFicCibilService:
             mobile=mobile,
             pan=pan
         )
+        print("========== API RESPONSE ==========")
+        print(api_response)
+        print("==================================")
 
         # =========================
         # FAILURE HANDLE + REFUND
