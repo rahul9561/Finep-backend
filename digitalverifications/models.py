@@ -14,7 +14,25 @@ class Mobile360Log(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
-        related_name="mobile360_logs"
+        related_name="mobile360_logs",
+        null=True,
+        blank=True
+    )
+
+    agent = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="agent_mobile360_logs",
+        null=True,
+        blank=True
+    )
+
+    customer = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE,
+        related_name="customer_mobile360_logs",
+        null=True,
+        blank=True
     )
 
     mobile = models.CharField(max_length=15)
@@ -23,6 +41,30 @@ class Mobile360Log(models.Model):
         max_length=255,
         blank=True,
         null=True
+    )
+
+    reference_id = models.CharField(
+        max_length=255,
+        blank=True,
+        null=True
+    )
+
+    cost_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    selling_price = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
+    )
+
+    profit = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0
     )
 
     status = models.CharField(

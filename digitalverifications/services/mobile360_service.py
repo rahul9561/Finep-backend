@@ -13,7 +13,7 @@ from cibil.models import (
     AgentCibilPricing
 )
 
-# from .models import Mobile360Log
+from digitalverifications.models import Mobile360Log
 from .mobile360 import SmartAuthClient
 
 

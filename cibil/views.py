@@ -1233,6 +1233,8 @@ class CustomerPricingAPIView(APIView):
             "msme",
             "rc",
             "electricity",
+            "leegality_esign",
+            "mobile360",
         ]
 
         SERVICE_MAP = {
