@@ -1210,13 +1210,81 @@ class AgentDashboardAPIView(APIView):
 #             "data": data
 #         })
 
+# class CustomerPricingAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request):
+
+#         user = request.user
+#         agent = user.created_by if user.role == "customer" else user
+
+#         SERVICES = [
+#             "prefill",
+#             "cibil",
+#             "experian",
+#             "crif",
+#             "equifax",
+#             "aadhaar",
+#             "pan",
+#             "gst",
+#             "bank",
+#             "cibil_advanced",
+#             "only_score",
+#             "msme",
+#             "rc",
+#             "electricity",
+#             "leegality_esign",
+#             "mobile360",
+#         ]
+
+#         SERVICE_MAP = {
+#             "pan": "pan_verify",
+#             "gst": "gst_verify",
+#             "bank": "bank_verify",
+#             "aadhaar": "aadhaar_verify",
+#         }
+
+#         data = []
+
+#         for service in SERVICES:
+
+#             mapped_service = SERVICE_MAP.get(service, service)
+
+#             # 🔥 ONLY AGENT-SET PRICE
+#             custom_price = AgentCibilPricing.objects.filter(
+#                 agent=agent,
+#                 customer=user if user.role == "customer" else None,
+#                 service=mapped_service
+#             ).order_by("-id").first()
+
+#             if not custom_price:
+#                 continue
+
+#             data.append({
+#                 "service": service,
+#                 "price": custom_price.price,
+#                 "is_custom": True
+#             })
+
+#         return Response({
+#             "status": True,
+#             "count": len(data),
+#             "data": data
+#         })
+
 class CustomerPricingAPIView(APIView):
+
     permission_classes = [IsAuthenticated]
 
     def get(self, request):
 
         user = request.user
-        agent = user.created_by if user.role == "customer" else user
+
+        agent = (
+            user.created_by
+            if user.role == "customer"
+            else user
+        )
 
         SERVICES = [
             "prefill",
@@ -1248,23 +1316,49 @@ class CustomerPricingAPIView(APIView):
 
         for service in SERVICES:
 
-            mapped_service = SERVICE_MAP.get(service, service)
+            mapped_service = SERVICE_MAP.get(
+                service,
+                service
+            )
 
-            # 🔥 ONLY AGENT-SET PRICE
-            custom_price = AgentCibilPricing.objects.filter(
-                agent=agent,
-                customer=user if user.role == "customer" else None,
-                service=mapped_service
-            ).order_by("-id").first()
+            custom_price = (
+                AgentCibilPricing.objects.filter(
+                    agent=agent,
+                    customer=(
+                        user
+                        if user.role == "customer"
+                        else None
+                    ),
+                    service=mapped_service
+                )
+                .order_by("-id")
+                .first()
+            )
 
             if not custom_price:
                 continue
+
+            # ====================================
+            # MAIN SERVICE
+            # ====================================
 
             data.append({
                 "service": service,
                 "price": custom_price.price,
                 "is_custom": True
             })
+
+            # ====================================
+            # ADD CIBIL JSON AUTOMATICALLY
+            # ====================================
+
+            if service == "cibil":
+
+                data.append({
+                    "service": "cibil_json",
+                    "price": custom_price.price,
+                    "is_custom": True
+                })
 
         return Response({
             "status": True,
@@ -1636,3 +1730,348 @@ def get_customer_pricing(request):
         "count": len(data),
         "data": data
     })
+    
+    
+    
+# views.py
+from decimal import Decimal
+
+import requests
+
+from django.conf import settings
+from django.core.files.base import ContentFile
+
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from rest_framework import status
+
+from .models import (
+    CibilReport,
+    AgentPlan,
+    PlanUsage,
+    AgentCibilPricing
+)
+
+
+class GenerateCibilReportJsonView(APIView):
+
+    def post(self, request):
+
+        try:
+
+            # =========================================
+            # LOGIN USER = AGENT
+            # =========================================
+
+            agent = request.user
+
+            # =========================================
+            # REQUEST DATA
+            # =========================================
+
+            name = request.data.get("name")
+            mobile = request.data.get("mobile")
+            pan_card = request.data.get("pan_card")
+            gender = request.data.get("gender")
+            report_type = request.data.get(
+                "report_type",
+                "cibil"
+            )
+
+            # =========================================
+            # AGENT ACTIVE PLAN
+            # =========================================
+
+            agent_plan = AgentPlan.objects.filter(
+                agent=agent,
+                is_active=True
+            ).select_related("plan").first()
+
+            if not agent_plan:
+
+                return Response(
+                    {
+                        "status": False,
+                        "message": "No active plan found"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # =========================================
+            # ADMIN COST PRICE
+            # =========================================
+
+            plan = agent_plan.plan
+
+            SERVICE_PRICE_MAP = {
+
+                "cibil": plan.cibil_price,
+
+                "experian": plan.experian_price,
+
+                "equifax": plan.equifax_price,
+
+                "crif": plan.crif_price,
+
+                "prefill": plan.prefill_price,
+
+                "aadhaar_verify": plan.aadhaar_price,
+
+                "pan_verify": plan.pan_verify_price,
+
+                "gst_verify": plan.gst_verify_price,
+
+                "bank_verify": plan.bank_verify_price,
+
+                "cibil_advanced":
+                    plan.cibil_advanced_price,
+
+                "only_score":
+                    plan.only_score_price,
+
+                "mobile360":
+                    plan.mobile360_price,
+
+                "leegality_esign":
+                    plan.leegality_esign_price,
+            }
+
+            agent_cost_price = Decimal(
+                SERVICE_PRICE_MAP.get(
+                    report_type,
+                    0
+                )
+            )
+
+            # =========================================
+            # AGENT SELL PRICE
+            # =========================================
+
+            customer_price = agent_cost_price
+
+            # agent_price = AgentCibilPricing.objects.filter(
+            #     agent=agent,
+            #     customer__isnull=True,
+            #     service=report_type
+            # ).first()
+            pricing_service = report_type
+
+            if report_type == "cibil_json":
+                pricing_service = "cibil"
+
+            agent_price = AgentCibilPricing.objects.filter(
+                agent=agent,
+                customer__isnull=True,
+                service=pricing_service
+            ).first()
+
+            if agent_price:
+
+                customer_price = Decimal(
+                    agent_price.price
+                )
+
+            # =========================================
+            # CHECK BALANCE
+            # =========================================
+
+            if (
+                agent_plan.remaining_balance
+                < agent_cost_price
+            ):
+
+                return Response(
+                    {
+                        "status": False,
+                        "message":
+                            "Insufficient balance"
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # =========================================
+            # CREATE REPORT
+            # =========================================
+
+            report = CibilReport.objects.create(
+                agent=agent,
+                name=name,
+                mobile=mobile,
+                pan=pan_card,
+                report_type=report_type,
+                status="PENDING"
+            )
+
+            # =========================================
+            # VERIFYAL API
+            # =========================================
+
+            url = (
+                "https://console.verifyal.com/"
+                "vendor-api/generate-report-data"
+            )
+
+            payload = {
+                "name": name,
+                "mobile": mobile,
+                "pan_card": pan_card,
+                "report_type": report_type,
+                "gender": gender,
+                "consent": "Y"
+            }
+
+            headers = {
+                "Token": settings.CIBIL_TOKEN,
+                "API-KEY": settings.CIBIL_API_KEY
+            }
+
+            response = requests.post(
+                url,
+                data=payload,
+                headers=headers
+            )
+
+            response_data = response.json()
+
+            print(response_data)
+
+            # =========================================
+            # FAILED
+            # =========================================
+
+            if response.status_code != 200:
+
+                report.status = "FAILED"
+
+                report.response_message = str(
+                    response_data
+                )
+
+                report.save()
+
+                return Response(
+                    {
+                        "status": False,
+                        "message": response_data
+                    },
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # =========================================
+            # SAVE PDF
+            # =========================================
+
+            pdf_url = response_data.get("pdf_url")
+
+            if pdf_url:
+
+                pdf_response = requests.get(
+                    pdf_url
+                )
+
+                if pdf_response.status_code == 200:
+
+                    pdf_name = f"{report.id}.pdf"
+
+                    report.report_pdf.save(
+                        pdf_name,
+                        ContentFile(
+                            pdf_response.content
+                        ),
+                        save=False
+                    )
+
+            # =========================================
+            # SUCCESS REPORT
+            # =========================================
+
+            report.status = "SUCCESS"
+
+            report.response_message = str(
+                response_data
+            )
+
+            report.save()
+
+            # =========================================
+            # DEDUCT AGENT BALANCE
+            # =========================================
+
+            agent_plan.remaining_balance -= (
+                agent_cost_price
+            )
+
+            agent_plan.save()
+
+            # =========================================
+            # PROFIT
+            # =========================================
+
+            profit = (
+                customer_price
+                - agent_cost_price
+            )
+
+            # =========================================
+            # SAVE USAGE
+            # =========================================
+
+            PlanUsage.objects.create(
+                agent=agent,
+                report=report,
+                service=report_type,
+                status="SUCCESS",
+                cost_price=agent_cost_price,
+                price=customer_price,
+                profit=profit,
+                reference_id=str(report.id)
+            )
+
+            # =========================================
+            # RESPONSE
+            # =========================================
+
+            return Response(
+                {
+                    "status": True,
+
+                    "message":
+                        "Report Generated Successfully",
+
+                    "report_id":
+                        str(report.id),
+
+                    "agent_cost_price":
+                        str(agent_cost_price),
+
+                    "customer_price":
+                        str(customer_price),
+
+                    "profit":
+                        str(profit),
+
+                    "remaining_balance":
+                        str(
+                            agent_plan.remaining_balance
+                        ),
+
+                    "pdf": (
+                        report.report_pdf.url
+                        if report.report_pdf
+                        else None
+                    ),
+
+                    "data": response_data
+                },
+                status=status.HTTP_200_OK
+            )
+
+        except Exception as e:
+
+            return Response(
+                {
+                    "status": False,
+                    "message": str(e)
+                },
+                status=status.HTTP_400_BAD_REQUEST
+            )

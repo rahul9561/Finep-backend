@@ -76,7 +76,13 @@ urlpatterns = [
     path(
     "agent/customer-pricing/",
     get_customer_pricing
-),
+    ),
+    
+    path(
+        "generate-cibil-json-report/",
+        GenerateCibilReportJsonView.as_view(),
+        name="generate-cibil-report"
+    ),
 
     path("", include(router.urls)),
 ]
