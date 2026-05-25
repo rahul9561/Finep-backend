@@ -1,154 +1,4 @@
-# from django.shortcuts import render
-# import base64
-# from rest_framework.views import APIView
-# from rest_framework.response import Response
-# from rest_framework import status
-
-# from .models import LeegalityDocument
-
-# from .services.leegality_service import (
-#     LeegalityService
-# )
-
-
-# # =====================================
-# # CREATE SIGN REQUEST
-# # =====================================
-
-# # CREATE SIGN REQUEST VIEW
-# from django.conf import settings
-
-# class CreateLeegalitySignAPIView(APIView):
-
-#     def post(self, request):
-
-#         pdf_file = request.FILES.get("file")
-
-#         if not pdf_file:
-
-#             return Response(
-#                 {
-#                     "error": "PDF file required"
-#                 },
-#                 status=status.HTTP_400_BAD_REQUEST
-#             )
-
-#         signer_name = request.data.get("name")
-
-#         signer_email = request.data.get("email")
-
-#         signer_phone = request.data.get("phone")
-
-#         irn = request.data.get(
-#             "irn",
-#             "ORDER_1001"
-#         )
-
-#         # PDF -> Base64
-#         base64_pdf = base64.b64encode(
-#             pdf_file.read()
-#         ).decode("utf-8")
-
-#         service = LeegalityService()
-
-#         response = service.create_sign_request(
-
-#             file_name=pdf_file.name,
-
-#             base64_file=base64_pdf,
-
-#             signer_name=signer_name,
-
-#             signer_email=signer_email,
-
-#             signer_phone=signer_phone,
-
-#             irn=irn
-#         )
-
-#         print(response)
-
-#         # MAIN DATA
-#         # data = response.get("data", {})
-#         data = response.get("data", {}).get("data", {})
-
-#         # DOCUMENT ID
-#         document_id = data.get(
-#             "documentId"
-#         )
-
-#         if not document_id:
-
-#             return Response(
-#                 {
-#                     "success": False,
-#                     "message": "Document creation failed",
-#                     "response": response
-#                 },
-#                 status=400
-#             )
-
-#         # INVITEES
-#         invitees = data.get(
-#             "invitees",
-#             []
-#         )
-
-#         sign_url = None
-
-#         expiry_date = None
-
-#         if invitees:
-
-#             sign_url = invitees[0].get(
-#                 "signUrl"
-#             )
-
-#             expiry_date = invitees[0].get(
-#                 "expiryDate"
-#             )
-
-#         # SAVE DB
-#         leegality_doc = (
-#             LeegalityDocument.objects.create(
-
-#                 profile_id=settings.LEEGALITY_PROFILE_ID,
-
-#                 document_id=document_id,
-
-#                 irn=irn,
-
-#                 signer_name=signer_name,
-
-#                 signer_email=signer_email,
-
-#                 signer_phone=signer_phone,
-
-#                 file_name=pdf_file.name,
-
-#                 sign_url=sign_url,
-
-#                 status="PENDING"
-#             )
-#         )
-
-#         return Response({
-
-#             "success": True,
-
-#             "message": "Sign request created successfully",
-
-#             "document_id": document_id,
-
-#             "sign_url": sign_url,
-
-#             "expiry_date": expiry_date,
-
-#             "response": response
-#         })
-
 # views.py
-
 from django.shortcuts import render
 import base64
 
@@ -669,15 +519,21 @@ class FetchLeegalityDocumentAPIView(APIView):
             "usedSignatureType"
         )
 
+        
         # =========================
         # STATUS
         # =========================
 
-        document_status = (
-            "SIGNED"
-            if completion_date
-            else "PENDING"
-        )
+        status_from_api = data.get("status")
+
+        if status_from_api:
+            document_status = status_from_api.upper()
+
+        elif completion_date:
+            document_status = "SIGNED"
+
+        else:
+            document_status = "PENDING"
 
         # =========================
         # UPDATE DATABASE
@@ -750,3 +606,73 @@ class FetchLeegalityDocumentAPIView(APIView):
 
             "response": response
         })
+        
+from django.views.decorators.csrf import csrf_exempt
+from django.utils.decorators import method_decorator      
+from rest_framework.decorators import api_view
+from rest_framework.response import Response
+import json
+
+@csrf_exempt
+@api_view(["POST"])
+def leegality_webhook(request):
+
+    data = request.data
+
+    print("WEBHOOK RECEIVED")
+    print(json.dumps(data, indent=4))
+
+    document_id = (
+        data.get("documentId")
+        or data.get("document_id")
+    )
+
+    status_value = (
+        data.get("status")
+        or data.get("documentStatus")
+        or "PENDING"
+    )
+
+    completion_date = (
+        data.get("completionDate")
+        or data.get("completedAt")
+    )
+
+    if not document_id:
+
+        return Response({
+            "success": False,
+            "message": "documentId missing"
+        })
+
+    try:
+
+        doc = LeegalityDocument.objects.get(
+            document_id=document_id
+        )
+
+        doc.status = status_value.upper()
+
+        if completion_date:
+            doc.completion_date = completion_date
+
+        doc.webhook_payload = data
+        doc.raw_response = data
+
+        doc.save(update_fields=[
+            "status",
+            "completion_date",
+            "webhook_payload",
+            "raw_response",
+            "updated_at"
+        ])
+
+        print("DOCUMENT UPDATED")
+
+    except LeegalityDocument.DoesNotExist:
+
+        print("DOCUMENT NOT FOUND")
+
+    return Response({
+        "success": True
+    })

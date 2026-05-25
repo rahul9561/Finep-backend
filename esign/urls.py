@@ -13,4 +13,7 @@ urlpatterns = [
         "leegality/document-details/",
         FetchLeegalityDocumentAPIView.as_view()
     ),
+    
+
+    path("leegality/webhook/",leegality_webhook,name="leegality_webhook")
 ]

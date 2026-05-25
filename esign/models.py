@@ -4,11 +4,16 @@ from django.conf import settings
 
 class LeegalityDocument(models.Model):
 
+    
     STATUS_CHOICES = (
         ("PENDING", "Pending"),
         ("SIGNED", "Signed"),
+        ("COMPLETED", "Completed"),
         ("FAILED", "Failed"),
         ("EXPIRED", "Expired"),
+        ("ACTIVE", "Active"),
+        ("IN_PROGRESS", "In Progress"),
+        ("CANCELLED", "Cancelled"),
     )
 
     agent = models.ForeignKey(
@@ -104,7 +109,8 @@ class LeegalityDocument(models.Model):
 
     completion_date = models.DateTimeField(
         null=True,
-        blank=True
+        blank=True,
+        db_index=True
     )
 
     webhook_payload = models.JSONField(
@@ -112,11 +118,13 @@ class LeegalityDocument(models.Model):
         blank=True
     )
 
+    
     status = models.CharField(
-        max_length=20,
-        choices=STATUS_CHOICES,
-        default="PENDING"
-    )
+            max_length=50,
+            choices=STATUS_CHOICES,
+            default="PENDING",
+            db_index=True
+        )
 
     created_at = models.DateTimeField(
         auto_now_add=True
