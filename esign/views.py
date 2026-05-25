@@ -430,6 +430,9 @@ class CreateLeegalitySignAPIView(APIView):
 # =====================================
 # FETCH DOCUMENT DETAILS
 # =====================================
+# =====================================
+# FETCH DOCUMENT DETAILS
+# =====================================
 class FetchLeegalityDocumentAPIView(APIView):
 
     def get(self, request):
@@ -442,102 +445,15 @@ class FetchLeegalityDocumentAPIView(APIView):
 
             return Response(
                 {
-                    "error": "document_id required"
+                    "success": False,
+                    "message": "document_id required"
                 },
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        service = LeegalityService()
-
-        response = service.fetch_document_details(
-            document_id=document_id
-        )
-
-        print(response)
-
-        # =========================
-        # ACTUAL API DATA
-        # =========================
-
-        data = response.get(
-            "data",
-            {}
-        ).get(
-            "data",
-            {}
-        )
-
-        # =========================
-        # INVITEES
-        # =========================
-
-        invitees = data.get(
-            "invitees",
-            []
-        )
-
-        invitee_data = {}
-
-        if invitees:
-
-            invitee_data = invitees[0]
-
-        # =========================
-        # EXTRACT DATA
-        # =========================
-
-        sign_url = invitee_data.get(
-            "signUrl"
-        )
-
-        expiry_date = invitee_data.get(
-            "expiryDate"
-        )
-
-        signer_name = invitee_data.get(
-            "name"
-        )
-
-        signer_email = invitee_data.get(
-            "email"
-        )
-
-        signer_phone = invitee_data.get(
-            "phone"
-        )
-
-        active = invitee_data.get(
-            "active",
-            False
-        )
-
-        completion_date = data.get(
-            "completionDate"
-        )
-
-        used_signature_type = data.get(
-            "usedSignatureType"
-        )
-
-        
-        # =========================
-        # STATUS
-        # =========================
-
-        status_from_api = data.get("status")
-
-        if status_from_api:
-            document_status = status_from_api.upper()
-
-        elif completion_date:
-            document_status = "SIGNED"
-
-        else:
-            document_status = "PENDING"
-
-        # =========================
-        # UPDATE DATABASE
-        # =========================
+        # =====================================
+        # FETCH FROM DATABASE
+        # =====================================
 
         try:
 
@@ -547,65 +463,303 @@ class FetchLeegalityDocumentAPIView(APIView):
                 )
             )
 
-            leegality_doc.sign_url = (
-                sign_url
-            )
-
-            leegality_doc.used_signature_type = (
-                used_signature_type
-            )
-
-            leegality_doc.completion_date = (
-                completion_date
-            )
-
-            leegality_doc.invitation_status = (
-                "ACTIVE"
-                if active
-                else "INACTIVE"
-            )
-
-            leegality_doc.status = (
-                document_status
-            )
-
-            leegality_doc.save()
-
         except LeegalityDocument.DoesNotExist:
 
             return Response(
                 {
-                    "error": "Document not found in DB"
+                    "success": False,
+                    "message": "Document not found"
                 },
                 status=status.HTTP_404_NOT_FOUND
             )
 
-        # =========================
+        # =====================================
+        # OPTIONAL:
+        # FETCH LATEST DATA FROM LEEGALITY
+        # =====================================
+
+        service = LeegalityService()
+
+        response = service.fetch_document_details(
+            document_id=document_id
+        )
+
+        print("FETCH RESPONSE")
+        print(response)
+
+        data = response.get(
+            "data",
+            {}
+        ).get(
+            "data",
+            {}
+        )
+
+        invitees = data.get(
+            "invitees",
+            []
+        )
+
+        invitee_data = {}
+
+        if invitees:
+            invitee_data = invitees[0]
+
+        # =====================================
+        # UPDATE OPTIONAL DETAILS ONLY
+        # DO NOT OVERWRITE STATUS
+        # =====================================
+
+        sign_url = (
+            invitee_data.get("signUrl")
+            or leegality_doc.sign_url
+        )
+
+        completion_date = (
+            data.get("completionDate")
+            or leegality_doc.completion_date
+        )
+
+        used_signature_type = (
+            data.get("usedSignatureType")
+            or leegality_doc.used_signature_type
+        )
+
+        active = invitee_data.get(
+            "active",
+            False
+        )
+
+        leegality_doc.sign_url = sign_url
+
+        leegality_doc.used_signature_type = (
+            used_signature_type
+        )
+
+        leegality_doc.completion_date = (
+            completion_date
+        )
+
+        leegality_doc.invitation_status = (
+            "ACTIVE"
+            if active
+            else "INACTIVE"
+        )
+
+        leegality_doc.save()
+
+        # =====================================
         # FINAL RESPONSE
-        # =========================
+        # STATUS COMES FROM WEBHOOK-UPDATED DB
+        # =====================================
 
         return Response({
 
             "success": True,
 
-            "document_id": document_id,
+            "document_id": leegality_doc.document_id,
 
-            "status": document_status,
+            "status": leegality_doc.status,
 
-            "sign_url": sign_url,
+            "sign_url": leegality_doc.sign_url,
 
-            "expiry_date": expiry_date,
+            "completion_date": leegality_doc.completion_date,
 
-            "completion_date": completion_date,
+            "used_signature_type":
+                leegality_doc.used_signature_type,
 
-            "signer_name": signer_name,
+            "signer_name":
+                leegality_doc.signer_name,
 
-            "signer_email": signer_email,
+            "signer_email":
+                leegality_doc.signer_email,
 
-            "signer_phone": signer_phone,
+            "signer_phone":
+                leegality_doc.signer_phone,
 
-            "response": response
+            "invitation_status":
+                leegality_doc.invitation_status,
+
+            "webhook_payload":
+                leegality_doc.webhook_payload,
         })
+
+# class FetchLeegalityDocumentAPIView(APIView):
+
+#     def get(self, request):
+
+#         document_id = request.GET.get(
+#             "document_id"
+#         )
+
+#         if not document_id:
+
+#             return Response(
+#                 {
+#                     "error": "document_id required"
+#                 },
+#                 status=status.HTTP_400_BAD_REQUEST
+#             )
+
+#         service = LeegalityService()
+
+#         response = service.fetch_document_details(
+#             document_id=document_id
+#         )
+
+#         print(response)
+
+#         # =========================
+#         # ACTUAL API DATA
+#         # =========================
+
+#         data = response.get(
+#             "data",
+#             {}
+#         ).get(
+#             "data",
+#             {}
+#         )
+
+#         # =========================
+#         # INVITEES
+#         # =========================
+
+#         invitees = data.get(
+#             "invitees",
+#             []
+#         )
+
+#         invitee_data = {}
+
+#         if invitees:
+
+#             invitee_data = invitees[0]
+
+#         # =========================
+#         # EXTRACT DATA
+#         # =========================
+
+#         sign_url = invitee_data.get(
+#             "signUrl"
+#         )
+
+#         expiry_date = invitee_data.get(
+#             "expiryDate"
+#         )
+
+#         signer_name = invitee_data.get(
+#             "name"
+#         )
+
+#         signer_email = invitee_data.get(
+#             "email"
+#         )
+
+#         signer_phone = invitee_data.get(
+#             "phone"
+#         )
+
+#         active = invitee_data.get(
+#             "active",
+#             False
+#         )
+
+#         completion_date = data.get(
+#             "completionDate"
+#         )
+
+#         used_signature_type = data.get(
+#             "usedSignatureType"
+#         )
+
+        
+#         # =========================
+#         # STATUS
+#         # =========================
+
+#         status_from_api = data.get("status")
+
+#         if status_from_api:
+#             document_status = status_from_api.upper()
+
+#         elif completion_date:
+#             document_status = "SIGNED"
+
+#         else:
+#             document_status = "PENDING"
+
+#         # =========================
+#         # UPDATE DATABASE
+#         # =========================
+
+#         try:
+
+#             leegality_doc = (
+#                 LeegalityDocument.objects.get(
+#                     document_id=document_id
+#                 )
+#             )
+
+#             leegality_doc.sign_url = (
+#                 sign_url
+#             )
+
+#             leegality_doc.used_signature_type = (
+#                 used_signature_type
+#             )
+
+#             leegality_doc.completion_date = (
+#                 completion_date
+#             )
+
+#             leegality_doc.invitation_status = (
+#                 "ACTIVE"
+#                 if active
+#                 else "INACTIVE"
+#             )
+
+#             leegality_doc.status = (
+#                 document_status
+#             )
+
+#             leegality_doc.save()
+
+#         except LeegalityDocument.DoesNotExist:
+
+#             return Response(
+#                 {
+#                     "error": "Document not found in DB"
+#                 },
+#                 status=status.HTTP_404_NOT_FOUND
+#             )
+
+#         # =========================
+#         # FINAL RESPONSE
+#         # =========================
+
+#         return Response({
+
+#             "success": True,
+
+#             "document_id": document_id,
+
+#             "status": document_status,
+
+#             "sign_url": sign_url,
+
+#             "expiry_date": expiry_date,
+
+#             "completion_date": completion_date,
+
+#             "signer_name": signer_name,
+
+#             "signer_email": signer_email,
+
+#             "signer_phone": signer_phone,
+
+#             "response": response
+#         })
         
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator      
