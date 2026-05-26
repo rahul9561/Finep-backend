@@ -97,7 +97,6 @@ class LeegalityService:
     # FETCH DOCUMENT DETAILS
     # =====================================
 
-
     def fetch_document_details(
         self,
         document_id
@@ -105,18 +104,19 @@ class LeegalityService:
 
         try:
 
+            url = (
+                f"{self.BASE_URL_V33}/document/details"
+                f"?documentId={document_id}"
+                f"&file=true"
+                f"&auditTrail=true"
+            )
+
+            print("FETCH URL")
+            print(url)
+
             response = requests.get(
 
-                f"{self.BASE_URL_V33}/document/details",
-
-                params={
-
-                    "documentId": document_id,
-
-                    "file": "true",
-
-                    "auditTrail": "true"
-                },
+                url,
 
                 headers=self.headers,
 
