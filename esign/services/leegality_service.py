@@ -147,3 +147,44 @@ class LeegalityService:
 
                 "error": str(e)
             }
+            
+            
+    # =====================================
+    # DOWNLOAD SIGNED DOCUMENT
+    # =====================================
+
+    def fetch_signed_document(
+        self,
+        document_id
+    ):
+
+        try:
+
+            response = requests.get(
+
+                f"{self.BASE_URL_V33}/document/fetchDocument",
+
+                params={
+
+                    "documentId": document_id,
+
+                    "documentDownloadType": "DOCUMENT"
+                },
+
+                headers=self.headers,
+
+                timeout=60,
+                stream=True
+            )
+
+            print("FETCH PDF STATUS:")
+            print(response.status_code)
+
+            return response
+
+        except requests.exceptions.RequestException as e:
+
+            print("FETCH PDF ERROR")
+            print(str(e))
+
+            return None

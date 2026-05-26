@@ -957,6 +957,15 @@ def leegality_webhook(request):
 
         doc.webhook_payload = data
         doc.raw_response = data
+        
+        invitation_url = (
+            data.get("request", {})
+            .get("invitationUrl")
+        )
+
+        if invitation_url:
+
+            doc.signed_pdf_url = invitation_url
 
         
         doc.save()
@@ -970,3 +979,69 @@ def leegality_webhook(request):
     return Response({
         "success": True
     })
+    
+    
+    
+from django.http import FileResponse
+import tempfile
+
+# =====================================
+# DOWNLOAD SIGNED PDF
+# =====================================
+
+class DownloadSignedPDFAPIView(APIView):
+
+    def get(self, request, document_id):
+
+        try:
+
+            doc = LeegalityDocument.objects.get(
+                document_id=document_id
+            )
+
+        except LeegalityDocument.DoesNotExist:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Document not found"
+                },
+                status=404
+            )
+
+        service = LeegalityService()
+
+        response = service.fetch_signed_document(
+            document_id
+        )
+
+        if not response or response.status_code != 200:
+
+            return Response(
+                {
+                    "success": False,
+                    "message": "Unable to fetch PDF"
+                },
+                status=400
+            )
+
+        temp_file = tempfile.NamedTemporaryFile(
+            delete=False,
+            suffix=".pdf"
+        )
+
+        for chunk in response.iter_content(
+            chunk_size=8192
+        ):
+            temp_file.write(chunk)
+
+        temp_file.close()
+
+        return FileResponse(
+
+            open(temp_file.name, "rb"),
+
+            as_attachment=True,
+
+            filename=f"{document_id}.pdf"
+        )

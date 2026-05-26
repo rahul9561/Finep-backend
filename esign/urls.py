@@ -14,6 +14,11 @@ urlpatterns = [
         FetchLeegalityDocumentAPIView.as_view()
     ),
     
+    path(
+        "leegality/download/<str:document_id>/",
+        DownloadSignedPDFAPIView.as_view()
+    ),
+    
 
     path("leegality/webhook/",leegality_webhook,name="leegality_webhook")
 ]
