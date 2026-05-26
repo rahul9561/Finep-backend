@@ -1,6 +1,7 @@
 # views.py
 from django.shortcuts import render
 import base64
+import json
 from cibil.models import PlanUsage
 from rest_framework.views import APIView
 from rest_framework.response import Response
@@ -557,6 +558,9 @@ class FetchLeegalityDocumentAPIView(APIView):
             "data",
             {}
         )
+        
+        print("FULL FETCH DATA")
+        print(json.dumps(data, indent=4))
 
         # =====================================
         # INVITEES
@@ -576,8 +580,16 @@ class FetchLeegalityDocumentAPIView(APIView):
         # SIGNED PDF URL
         # =====================================
 
+        # signed_pdf_url = (
+        #     data.get("signedFile")
+        #     or data.get("signedPdfUrl")
+        #     or data.get("documentUrl")
+        #     or data.get("downloadUrl")
+        #     or leegality_doc.signed_pdf_url
+        # )
         signed_pdf_url = (
-            data.get("signedFile")
+            data.get("file")
+            or data.get("signedFile")
             or data.get("signedPdfUrl")
             or data.get("documentUrl")
             or data.get("downloadUrl")

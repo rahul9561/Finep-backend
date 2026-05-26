@@ -97,6 +97,7 @@ class LeegalityService:
     # FETCH DOCUMENT DETAILS
     # =====================================
 
+
     def fetch_document_details(
         self,
         document_id
@@ -109,7 +110,12 @@ class LeegalityService:
                 f"{self.BASE_URL_V33}/document/details",
 
                 params={
-                    "documentId": document_id
+
+                    "documentId": document_id,
+
+                    "file": "true",
+
+                    "auditTrail": "true"
                 },
 
                 headers=self.headers,
