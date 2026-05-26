@@ -989,25 +989,12 @@ import tempfile
 # DOWNLOAD SIGNED PDF
 # =====================================
 
+from django.http import HttpResponse
+
+
 class DownloadSignedPDFAPIView(APIView):
 
     def get(self, request, document_id):
-
-        try:
-
-            doc = LeegalityDocument.objects.get(
-                document_id=document_id
-            )
-
-        except LeegalityDocument.DoesNotExist:
-
-            return Response(
-                {
-                    "success": False,
-                    "message": "Document not found"
-                },
-                status=404
-            )
 
         service = LeegalityService()
 
@@ -1015,7 +1002,7 @@ class DownloadSignedPDFAPIView(APIView):
             document_id
         )
 
-        if not response or response.status_code != 200:
+        if not response:
 
             return Response(
                 {
@@ -1025,23 +1012,37 @@ class DownloadSignedPDFAPIView(APIView):
                 status=400
             )
 
-        temp_file = tempfile.NamedTemporaryFile(
-            delete=False,
-            suffix=".pdf"
+        # DEBUG
+        print("PDF STATUS")
+        print(response.status_code)
+
+        print("CONTENT TYPE")
+        print(
+            response.headers.get(
+                "Content-Type"
+            )
         )
 
-        for chunk in response.iter_content(
-            chunk_size=8192
-        ):
-            temp_file.write(chunk)
+        if response.status_code != 200:
 
-        temp_file.close()
+            return Response(
+                {
+                    "success": False,
+                    "message": "PDF not found",
+                    "response": response.text
+                },
+                status=400
+            )
 
-        return FileResponse(
-
-            open(temp_file.name, "rb"),
-
-            as_attachment=True,
-
-            filename=f"{document_id}.pdf"
+        pdf_response = HttpResponse(
+            response.content,
+            content_type="application/pdf"
         )
+
+        pdf_response[
+            "Content-Disposition"
+        ] = (
+            f'inline; filename="{document_id}.pdf"'
+        )
+
+        return pdf_response
