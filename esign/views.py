@@ -1,7 +1,7 @@
 # views.py
 from django.shortcuts import render
 import base64
-
+from cibil.models import PlanUsage
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
@@ -263,6 +263,7 @@ class CreateLeegalitySignAPIView(APIView):
         # FAILED => REFUND
         # =====================================
         if response.get("status_code") != 200:
+            
 
             if customer:
 
@@ -272,6 +273,25 @@ class CreateLeegalitySignAPIView(APIView):
                     service="leegality_esign",
                     note="Refund Aadhaar eSign failed"
                 )
+                
+            PlanUsage.objects.create(
+
+                agent=agent,
+
+                customer=customer if customer else None,
+
+                service="leegality_esign",
+
+                status="FAILED",
+
+                cost_price=cost_price,
+
+                price=selling_price,
+
+                profit=0,
+
+                reference_id=f"LEEGFAIL-{uuid.uuid4().hex[:10]}"
+            )
 
             return Response(
                 {
@@ -299,6 +319,28 @@ class CreateLeegalitySignAPIView(APIView):
                     service="leegality_esign",
                     note="Refund Aadhaar eSign failed"
                 )
+            # =====================================
+            # SAVE FAILED USAGE
+            # =====================================
+
+            PlanUsage.objects.create(
+
+                agent=agent,
+
+                customer=customer if customer else None,
+
+                service="leegality_esign",
+
+                status="FAILED",
+
+                cost_price=cost_price,
+
+                price=selling_price,
+
+                profit=0,
+
+                reference_id=f"LEEGFAIL-{uuid.uuid4().hex[:10]}"
+            )
 
             return Response(
                 {
@@ -365,6 +407,31 @@ class CreateLeegalitySignAPIView(APIView):
         profit = max(
             Decimal(selling_price) - Decimal(cost_price),
             0
+        )
+        
+        
+        # =====================================
+        # SAVE USAGE HISTORY
+        # =====================================
+
+
+        PlanUsage.objects.create(
+
+            agent=agent,
+
+            customer=customer if customer else None,
+
+            service="leegality_esign",
+
+            status="SUCCESS",
+
+            cost_price=cost_price,
+
+            price=selling_price,
+
+            profit=profit,
+
+            reference_id=f"LEEG-{uuid.uuid4().hex[:10]}"
         )
 
         # =====================================
@@ -509,6 +576,8 @@ class FetchLeegalityDocumentAPIView(APIView):
         # UPDATE OPTIONAL DETAILS ONLY
         # DO NOT OVERWRITE STATUS
         # =====================================
+        
+        
 
         sign_url = (
             invitee_data.get("signUrl")
@@ -813,13 +882,8 @@ def leegality_webhook(request):
         doc.webhook_payload = data
         doc.raw_response = data
 
-        doc.save(update_fields=[
-            "status",
-            "completion_date",
-            "webhook_payload",
-            "raw_response",
-            "updated_at"
-        ])
+        
+        doc.save()
 
         print("DOCUMENT UPDATED")
 
