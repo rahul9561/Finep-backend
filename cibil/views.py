@@ -42,61 +42,275 @@ from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
 
+# class GenerateCibilReportView(APIView):
+
+#     permission_classes = [IsAuthenticated]
+
+#     def post(self, request):
+
+#         serializer = CibilReportSerializer(data=request.data)
+#         serializer.is_valid(raise_exception=True)
+
+#         data = serializer.validated_data
+
+#         result = CibilService.generate_report(
+#             request.user,
+#             data
+#         )
+
+#         if not result.get("success"):
+#             return Response(result, status=400)
+
+#         pdf = result.get("file")
+
+#         if not pdf:
+#             return Response(
+#                 {"success": False, "message": "PDF not generated"},
+#                 status=500
+#             )
+
+#         filename = f"{uuid.uuid4()}.pdf"
+
+#         # ✅ DB SAVE
+#         # report = CibilReport.objects.create(
+#         #     agent=request.user,
+#         #     name=data.get("name"),
+#         #     mobile=data.get("mobile"),
+#         #     pan=data.get("pan"),
+#         #     report_type=data.get("report_type"),
+#         #     status="SUCCESS",
+#         # )
+
+#         # ✅ PDF SAVE
+#         # report.report_pdf.save(
+#         #     filename,
+#         #     ContentFile(pdf),
+#         #     save=True
+#         # )
+
+#         # ✅ RESPONSE
+#         response = HttpResponse(
+#             pdf,
+#             content_type="application/pdf"
+#         )
+
+#         response["Content-Disposition"] = f'attachment; filename="{filename}"'
+
+#         return response
+
+
+import uuid
+import logging
+
+
+
+
+logger = logging.getLogger(__name__)
+
+
 class GenerateCibilReportView(APIView):
 
     permission_classes = [IsAuthenticated]
 
     def post(self, request):
 
-        serializer = CibilReportSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
+        try:
 
-        data = serializer.validated_data
+            logger.info("=" * 60)
+            logger.info("CIBIL REPORT API START")
+            logger.info("=" * 60)
 
-        result = CibilService.generate_report(
-            request.user,
-            data
-        )
+            # ======================================
+            # REQUEST DATA
+            # ======================================
 
-        if not result.get("success"):
-            return Response(result, status=400)
-
-        pdf = result.get("file")
-
-        if not pdf:
-            return Response(
-                {"success": False, "message": "PDF not generated"},
-                status=500
+            logger.info(
+                f"REQUEST DATA => {request.data}"
             )
 
-        filename = f"{uuid.uuid4()}.pdf"
+            # ======================================
+            # SERIALIZER
+            # ======================================
 
-        # ✅ DB SAVE
-        # report = CibilReport.objects.create(
-        #     agent=request.user,
-        #     name=data.get("name"),
-        #     mobile=data.get("mobile"),
-        #     pan=data.get("pan"),
-        #     report_type=data.get("report_type"),
-        #     status="SUCCESS",
-        # )
+            serializer = CibilReportSerializer(
+                data=request.data
+            )
 
-        # ✅ PDF SAVE
-        # report.report_pdf.save(
-        #     filename,
-        #     ContentFile(pdf),
-        #     save=True
-        # )
+            if not serializer.is_valid():
 
-        # ✅ RESPONSE
-        response = HttpResponse(
-            pdf,
-            content_type="application/pdf"
-        )
+                logger.error(
+                    f"SERIALIZER ERRORS => "
+                    f"{serializer.errors}"
+                )
 
-        response["Content-Disposition"] = f'attachment; filename="{filename}"'
+                return Response(
+                    {
+                        "success": False,
+                        "errors": serializer.errors
+                    },
+                    status=400
+                )
 
-        return response
+            data = serializer.validated_data
+
+            logger.info(
+                f"VALIDATED DATA => {data}"
+            )
+
+            # ======================================
+            # CALL SERVICE
+            # ======================================
+
+            logger.info(
+                "CALLING CIBIL SERVICE"
+            )
+
+            result = CibilService.generate_report(
+                request.user,
+                data
+            )
+
+            logger.info(
+                f"CIBIL SERVICE RESPONSE => "
+                f"{result}"
+            )
+
+            # ======================================
+            # FAILURE RESPONSE
+            # ======================================
+
+            if not result.get("success"):
+
+                logger.error(
+                    f"CIBIL FAILED => "
+                    f"{result}"
+                )
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": result.get(
+                            "message"
+                        ),
+                        "raw": result.get("raw")
+                    },
+                    status=400
+                )
+
+            # ======================================
+            # GET PDF
+            # ======================================
+
+            pdf = result.get("file")
+
+            logger.info(
+                f"PDF FOUND => {bool(pdf)}"
+            )
+
+            if not pdf:
+
+                logger.error(
+                    "PDF NOT GENERATED"
+                )
+
+                return Response(
+                    {
+                        "success": False,
+                        "message": "PDF not generated"
+                    },
+                    status=500
+                )
+
+            # ======================================
+            # FILENAME
+            # ======================================
+
+            filename = (
+                f"{uuid.uuid4()}.pdf"
+            )
+
+            logger.info(
+                f"FILENAME => {filename}"
+            )
+
+            # ======================================
+            # SAVE REPORT
+            # ======================================
+
+            report = CibilReport.objects.create(
+
+                agent=request.user,
+
+                name=data.get("name"),
+
+                mobile=data.get("mobile"),
+
+                pan=data.get("pan"),
+
+                report_type=data.get(
+                    "report_type"
+                ),
+
+                status="SUCCESS"
+            )
+
+            logger.info(
+                f"REPORT CREATED => "
+                f"{report.id}"
+            )
+
+            # ======================================
+            # SAVE PDF
+            # ======================================
+
+            report.report_pdf.save(
+
+                filename,
+
+                ContentFile(pdf),
+
+                save=True
+            )
+
+            logger.info(
+                "PDF SAVED SUCCESSFULLY"
+            )
+
+            # ======================================
+            # RESPONSE
+            # ======================================
+
+            response = HttpResponse(
+
+                pdf,
+
+                content_type="application/pdf"
+            )
+
+            response["Content-Disposition"] = (
+
+                f'attachment; filename="{filename}"'
+            )
+
+            logger.info("=" * 60)
+            logger.info("CIBIL REPORT SUCCESS")
+            logger.info("=" * 60)
+
+            return response
+
+        except Exception as e:
+
+            logger.exception(
+                "CIBIL REPORT EXCEPTION"
+            )
+
+            return Response(
+                {
+                    "success": False,
+                    "message": str(e)
+                },
+                status=500
+            )
 
 
 from rest_framework.views import APIView
